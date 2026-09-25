@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>El Cofre de los Números - Niveles Únicos</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            background: linear-gradient(to bottom, #1d2671, #c33764);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        
+        /* UI Overlay */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 15px;
+        }
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            font-weight: bold;
+            font-size: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .hud-item {
+            background: rgba(0, 0, 0, 0.65);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 2px solid #ffd700;
+        }
+        .energy-bar-container {
+            width: 120px;
+            height: 14px;
+            background: #444;
+            border-radius: 7px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            border: 1px solid #fff;
+            margin-left: 5px;
+        }
+        .energy-bar-fill {
+            height: 100%;
+            background: #00e676;
+            width: 100%;
+            transition: width 0.3s ease;
+        }
+
+        /* Controles Táctiles */
+        .touch-controls {
+            display: none;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 20px;
+            pointer-events: auto;
+            width: 100%;
+        }
+        .dpad {
+            display: flex;
+            gap: 20px;
+        }
+        .btn-touch {
+            width: 65px;
+            height: 65px;
+            background: rgba(255, 255, 255, 0.35);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: white;
+            font-weight: bold;
+            touch-action: manipulation;
+        }
+        .btn-touch:active {
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Modal Matemático / Cofre */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 100;
+        }
+        .modal-content {
+            background: #222831;
+            border: 4px solid #ffd700;
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 550px;
+            width: 90%;
+            color: #fff;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+        }
+        .modal-title {
+            font-size: 22px;
+            color: #ffd700;
+            margin-bottom: 10px;
+        }
+        .modal-question {
+            font-size: 17px;
+            margin-bottom: 18px;
+            line-height: 1.4;
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .btn-option {
+            background: #393e46;
+            color: #eee;
+            border: 2px solid #ffd700;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-option:hover {
+            background: #ffd700;
+            color: #000;
+            font-weight: bold;
+        }
+        .feedback-text {
+            font-size: 15px;
+            margin-top: 8px;
+            min-height: 20px;
+            font-weight: bold;
+        }
+        .feedback-correct { color: #4eef90; }
+        .feedback-wrong { color: #ff5722; }
+
+        /* Pantallas */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 200;
+            pointer-events: auto;
+        }
+        .character-select {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .char-card {
+            border: 3px solid #393e46;
+            border-radius: 15px;
+            padding: 15px 25px;
+            cursor: pointer;
+            text-align: center;
+            background: #222831;
+            transition: 0.3s;
+        }
+        .char-card.selected {
+            border-color: #ffd700;
+            background: #393e46;
+            transform: scale(1.05);
+        }
+        .char-icon {
+            font-size: 40px;
+            margin-bottom: 5px;
+        }
+        .btn-main {
+            background: #ff5722;
+            color: white;
+            border: none;
+            padding: 12px 35px;
+            font-size: 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #c43e00;
+        }
+        .btn-main:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #c43e00;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Overlay HUD -->
+    <div class="ui-layer">
+        <div class="hud">
+            <div class="hud-item">🚩 Nivel: <span id="level-display">1/15</span></div>
+            <div class="hud-item">❤️ Vidas: <span id="lives-display">3</span></div>
+            <div class="hud-item">
+                ⚡ Energía: 
+                <div class="energy-bar-container">
+                    <div class="energy-bar-fill" id="energy-bar"></div>
+                </div>
+            </div>
+            <div class="hud-item">💎 Puntos: <span id="score-display">0</span></div>
+        </div>
+        <div class="touch-controls" id="touch-controls">
+            <div class="dpad">
+                <div class="btn-touch" id="btn-left">◀</div>
+                <div class="btn-touch" id="btn-right">▶</div>
+            </div>
+            <div class="dpad">
+                <div class="btn-touch" id="btn-jump" style="background: rgba(255, 152, 0, 0.5);">▲</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal del Cofre Matemático -->
+    <div class="modal" id="math-modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-title">📦 ¡Cofre del Tesoro!</div>
+            <div class="modal-question" id="modal-question">Cargando desafío...</div>
+            <div class="options-grid" id="options-container"></div>
+            <div class="feedback-text" id="feedback-text"></div>
+        </div>
+    </div>
+
+    <!-- Pantalla de Inicio -->
+    <div class="screen" id="start-screen">
+        <h1 style="font-size: 32px; color: #ffd700; text-align: center;">EL COFRE DE LOS NÚMEROS</h1>
+        <p style="font-size: 15px; color: #ccc; margin-top: 5px;">Aventura de 15 Niveles Únicos</p>
+
+        <p style="margin-top: 25px; font-size: 18px; font-weight: bold;">Elige tu Explorador:</p>
+        <div class="character-select">
+            <div class="char-card selected" id="card-boy" onclick="selectGender('boy')">
+                <div class="char-icon">🤠</div>
+                <span style="font-weight: bold;">Leo el Aventurero</span>
+            </div>
+            <div class="char-card" id="card-girl" onclick="selectGender('girl')">
+                <div class="char-icon">👧🏻</div>
+                <span style="font-weight: bold;">Maya la Exploradora</span>
+            </div>
+        </div>
+
+        <button class="btn-main" onclick="startGame()">¡COMENZAR AVENTURA!</button>
+    </div>
+
+    <!-- Pantalla de Victoria Final -->
+    <div class="screen" id="victory-screen" style="display: none;">
+        <h1 style="font-size: 34px; color: #ffd700;">¡HAS RECOLECTADO TODOS LOS TESOROS! 🏆</h1>
+        <p style="font-size: 18px; margin-top: 15px;">Completaste exitosamente los 15 niveles únicos de la expedición.</p>
+        <p style="font-size: 16px; color: #aaa; margin-top: 10px;" id="final-stats"></p>
+        <button class="btn-main" onclick="restartGame()">VOLVER A JUGAR</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    canvas.width = Math.min(window.innerWidth, 900);
+    canvas.height = Math.min(window.innerHeight, 500);
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    document.getElementById('touch-controls').style.display = 'flex';
+}
+
+let currentLevel = 1;
+let gameState = 'START';
+let score = 0;
+let lives = 3;
+let energy = 100;
+let selectedGender = 'boy';
+let animationFrameId = null;
+let gameTime = 0;
+
+const keys = { left: false, right: false, jump: false };
+
+window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+    if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+        if (!player.isJumping) {
+            player.vy = player.jumpStrength;
+            player.isJumping = true;
+        }
+    }
+});
+
+window.addEventListener('keyup', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+});
+
+function bindTouch(id, keyProp, isAction = false) {
+    const btn = document.getElementById(id);
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (isAction) {
+            if (!player.isJumping) {
+                player.vy = player.jumpStrength;
+                player.isJumping = true;
+            }
+        } else {
+            keys[keyProp] = true;
+        }
+    });
+    btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (!isAction) keys[keyProp] = false;
+    });
+}
+bindTouch('btn-left', 'left');
+bindTouch('btn-right', 'right');
+bindTouch('btn-jump', 'jump', true);
+
+function selectGender(gender) {
+    selectedGender = gender;
+    document.getElementById('card-boy').classList.toggle('selected', gender === 'boy');
+    document.getElementById('card-girl').classList.toggle('selected', gender === 'girl');
+}
+
+const groundY = 400;
+
+const player = {
+    x: 50,
+    y: groundY - 55,
+    width: 32,
+    height: 55,
+    vx: 0,
+    vy: 0,
+    speed: 4,
+    jumpStrength: -11,
+    gravity: 0.5,
+    isJumping: false,
+    facing: 'right',
+    invulnerableTimer: 0
+};
+
+// Banco completo de 15 niveles con diseño de escenario personalizado
+const levelsData = [
+    { id: 1, title: "Cofre 1: Recta Numérica I", question: "Estás en la posición -3 y avanzas 5 unidades a la derecha. ¿En qué número quedas?", options: ["2", "-8", "8", "-2"], correct: "2", hint: "-3 + 5 = 2.", walls: [{x: 260, y: groundY-70, width: 25, height: 70}], enemies: [{x: 350, y: groundY-32, width: 32, height: 32, vx: 1.2, minX: 300, maxX: 450, alive: true}], items: [{x: 180, y: groundY-20, type: 'coin', collected: false}], chests: {x: 750, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 2, title: "Cofre 2: Valor Absoluto", question: "¿Cuál es el valor absoluto de -9 (es decir, |-9|)?", options: ["9", "-9", "0", "18"], correct: "9", hint: "El valor absoluto siempre es positivo.", walls: [{x: 200, y: groundY-60, width: 25, height: 60}, {x: 500, y: groundY-90, width: 25, height: 90}], enemies: [{x: 330, y: groundY-32, width: 32, height: 32, vx: -1.3, minX: 250, maxX: 420, alive: true}], items: [{x: 400, y: groundY-20, type: 'diamond', collected: false}], chests: {x: 800, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 3, title: "Cofre 3: Cambio de Temperatura", question: "La cueva estaba a -4 °C y la temperatura subió 7 °C. ¿Cuál es la nueva temperatura?", options: ["3 °C", "-11 °C", "-3 °C", "11 °C"], correct: "3 °C", hint: "-4 + 7 = 3.", walls: [{x: 350, y: groundY-80, width: 30, height: 80}], enemies: [{x: 200, y: groundY-32, width: 32, height: 32, vx: 1.5, minX: 150, maxX: 300, alive: true}, {x: 500, y: groundY-32, width: 32, height: 32, vx: -1.5, minX: 420, maxX: 580, alive: true}], items: [{x: 620, y: groundY-20, type: 'coin', collected: false}], chests: {x: 820, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 4, title: "Cofre 4: Comparación de Enteros", question: "¿Cuál de estos números enteros es el mayor?", options: ["-1", "-12", "-5", "-20"], correct: "-1", hint: "El entero negativo más cercano al cero es mayor.", walls: [{x: 250, y: groundY-60, width: 20, height: 60}, {x: 600, y: groundY-70, width: 25, height: 70}], enemies: [{x: 400, y: groundY-32, width: 32, height: 32, vx: 1.4, minX: 280, maxX: 550, alive: true}], items: [{x: 150, y: groundY-20, type: 'coin', collected: false}], chests: {x: 850, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 5, title: "Cofre 5: Resta con Negativos", question: "Resuelve la operación: 6 - (-4)", options: ["10", "2", "-10", "-2"], correct: "10", hint: "Restar un negativo es sumar: 6 + 4.", walls: [{x: 450, y: groundY-100, width: 35, height: 100}], enemies: [{x: 220, y: groundY-32, width: 32, height: 32, vx: -1.2, minX: 180, maxX: 380, alive: true}, {x: 650, y: groundY-32, width: 32, height: 32, vx: 1.6, minX: 520, maxX: 750, alive: true}], items: [{x: 320, y: groundY-20, type: 'diamond', collected: false}], chests: {x: 880, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 6, title: "Cofre 6: Suma de Negativos", question: "Si pierdes 8 puntos (-8) y luego pierdes 5 puntos más (-5), ¿cuál es el saldo final?", options: ["-13", "-3", "13", "3"], correct: "-13", hint: "Suma de deudas: (-8) + (-5) = -13.", walls: [{x: 200, y: groundY-50, width: 25, height: 50}, {x: 480, y: groundY-80, width: 25, height: 80}], enemies: [{x: 320, y: groundY-32, width: 32, height: 32, vx: 1.3, minX: 240, maxX: 430, alive: true}], items: [{x: 600, y: groundY-20, type: 'coin', collected: false}], chests: {x: 830, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 7, title: "Cofre 7: Desplazamiento Cero", question: "Partes del nivel 0, desciendes 6 niveles y luego subes 6 niveles. ¿En qué nivel estás?", options: ["0", "12", "-12", "6"], correct: "0", hint: "Un número sumado a su opuesto da cero.", walls: [{x: 300, y: groundY-70, width: 30, height: 70}, {x: 650, y: groundY-90, width: 30, height: 90}], enemies: [{x: 480, y: groundY-32, width: 32, height: 32, vx: -1.5, minX: 350, maxX: 600, alive: true}], items: [{x: 180, y: groundY-20, type: 'coin', collected: false}], chests: {x: 860, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 8, title: "Cofre 8: Fracciones Equivalentes", question: "¿Cuál de las siguientes opciones es equivalente a 2/4?", options: ["1/2", "3/4", "2/8", "4/2"], correct: "1/2", hint: "Simplifica dividiendo numerador y denominador entre 2.", walls: [{x: 380, y: groundY-85, width: 25, height: 85}], enemies: [{x: 200, y: groundY-32, width: 32, height: 32, vx: 1.4, minX: 150, maxX: 330, alive: true}, {x: 550, y: groundY-32, width: 32, height: 32, vx: 1.4, minX: 450, maxX: 700, alive: true}], items: [{x: 730, y: groundY-20, type: 'diamond', collected: false}], chests: {x: 870, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 9, title: "Cofre 9: Comparación de Racionales", question: "¿Qué fracción representa una mayor cantidad entre 1/2 y 3/4?", options: ["3/4", "1/2", "Son iguales", "Ninguna"], correct: "3/4", hint: "Convertidas a cuartos: 2/4 < 3/4.", walls: [{x: 220, y: groundY-60, width: 25, height: 60}, {x: 520, y: groundY-60, width: 25, height: 60}], enemies: [{x: 350, y: groundY-32, width: 32, height: 32, vx: -1.3, minX: 250, maxX: 480, alive: true}], items: [{x: 120, y: groundY-20, type: 'coin', collected: false}], chests: {x: 840, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 10, title: "Cofre 10: Fracciones a Decimales", question: "¿A qué número decimal equivale la fracción 3/4?", options: ["0,75", "0,5", "0,25", "0,3"], correct: "0,75", hint: "3 dividido entre 4 es igual a 0,75.", walls: [{x: 420, y: groundY-95, width: 30, height: 95}], enemies: [{x: 200, y: groundY-32, width: 32, height: 32, vx: 1.6, minX: 140, maxX: 380, alive: true}, {x: 620, y: groundY-32, width: 32, height: 32, vx: -1.6, minX: 480, maxX: 750, alive: true}], items: [{x: 500, y: groundY-20, type: 'coin', collected: false}], chests: {x: 880, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 11, title: "Cofre 11: Suma de Fracciones", question: "Resuelve la siguiente suma: 3/7 + 2/7", options: ["5/7", "5/14", "1/7", "6/7"], correct: "5/7", hint: "Conserva el denominador y suma los numeradores.", walls: [{x: 280, y: groundY-70, width: 25, height: 70}, {x: 600, y: groundY-70, width: 25, height: 70}], enemies: [{x: 440, y: groundY-32, width: 32, height: 32, vx: 1.3, minX: 320, maxX: 550, alive: true}], items: [{x: 150, y: groundY-20, type: 'diamond', collected: false}], chests: {x: 850, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 12, title: "Cofre 12: Decimal a Fracción", question: "Expresa el número decimal 0,25 como una fracción simplificada.", options: ["1/4", "1/2", "2/5", "1/5"], correct: "1/4", hint: "0,25 equivale a 25/100 = 1/4.", walls: [{x: 350, y: groundY-80, width: 30, height: 80}], enemies: [{x: 220, y: groundY-32, width: 32, height: 32, vx: -1.4, minX: 160, maxX: 310, alive: true}, {x: 580, y: groundY-32, width: 32, height: 32, vx: 1.4, minX: 420, maxX: 720, alive: true}], items: [{x: 700, y: groundY-20, type: 'coin', collected: false}], chests: {x: 860, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 13, title: "Cofre 13: Clasificación de Fracciones", question: "¿Cuál de estas opciones es una fracción impropia?", options: ["7/3", "2/5", "3/8", "1/2"], correct: "7/3", hint: "Una fracción impropia tiene un numerador mayor que el denominador.", walls: [{x: 200, y: groundY-50, width: 25, height: 50}, {x: 500, y: groundY-90, width: 25, height: 90}], enemies: [{x: 360, y: groundY-32, width: 32, height: 32, vx: 1.5, minX: 250, maxX: 460, alive: true}], items: [{x: 620, y: groundY-20, type: 'coin', collected: false}], chests: {x: 830, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 14, title: "Cofre 14: Resta de Racionales", question: "Calcula: 5/6 - 2/6", options: ["3/6 (1/2)", "3/0", "7/6", "1/6"], correct: "3/6 (1/2)", hint: "Resta 5 - 2 y mantén el denominador 6.", walls: [{x: 320, y: groundY-80, width: 25, height: 80}, {x: 650, y: groundY-70, width: 25, height: 70}], enemies: [{x: 480, y: groundY-32, width: 32, height: 32, vx: -1.6, minX: 380, maxX: 600, alive: true}], items: [{x: 180, y: groundY-20, type: 'diamond', collected: false}], chests: {x: 870, y: groundY-45, width: 55, height: 45, opened: false} },
+    { id: 15, title: "Cofre 15: Desafío Final", question: "Un submarino está a -1,5 km y asciende 3/4 km (0,75 km). ¿A qué profundidad queda?", options: ["-0,75 km", "-2,25 km", "0,75 km", "-1 km"], correct: "-0,75 km", hint: "Calcula: -1,5 + 0,75 = -0,75.", walls: [{x: 250, y: groundY-60, width: 25, height: 60}, {x: 550, y: groundY-100, width: 30, height: 100}], enemies: [{x: 380, y: groundY-32, width: 32, height: 32, vx: 1.8, minX: 290, maxX: 500, alive: true}, {x: 700, y: groundY-32, width: 32, height: 32, vx: -1.8, minX: 600, maxX: 820, alive: true}], items: [{x: 150, y: groundY-20, type: 'coin', collected: false}], chests: {x: 890, y: groundY-45, width: 55, height: 45, opened: false} }
+];
+
+let activeLevelData = null;
+let floatingRewards = [];
+let mysteryBlocks = [
+    { x: 150, y: groundY - 95, width: 35, height: 35, hit: false, reward: 'coin' },
+    { x: 450, y: groundY - 110, width: 35, height: 35, hit: false, reward: 'heart' }
+];
+
+function updateHUD() {
+    document.getElementById('level-display').innerText = `${currentLevel}/15`;
+    document.getElementById('score-display').innerText = score;
+    document.getElementById('lives-display').innerText = lives;
+    document.getElementById('energy-bar').style.width = `${energy}%`;
+    
+    const bar = document.getElementById('energy-bar');
+    if (energy > 50) bar.style.background = '#00e676';
+    else if (energy > 25) bar.style.background = '#ffeb3b';
+    else bar.style.background = '#ff5252';
+}
+
+function startGame() {
+    document.getElementById('start-screen').style.display = 'none';
+    currentLevel = 1;
+    score = 0;
+    lives = 3;
+    energy = 100;
+    loadLevel(currentLevel);
+    
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    animationFrameId = requestAnimationFrame(gameLoop);
+}
+
+function loadLevel(lvlNum) {
+    const template = levelsData[lvlNum - 1];
+    activeLevelData = {
+        ...template,
+        walls: template.walls.map(w => ({ ...w })),
+        enemies: template.enemies.map(e => ({ ...e, alive: true })),
+        items: template.items.map(i => ({ ...i, collected: false })),
+        chests: { ...template.chests, opened: false }
+    };
+
+    mysteryBlocks.forEach(b => b.hit = false);
+    floatingRewards = [];
+    
+    player.x = 50;
+    player.y = groundY - player.height;
+    player.vx = 0;
+    player.vy = 0;
+    player.isJumping = false;
+    player.invulnerableTimer = 0;
+    
+    updateHUD();
+    gameState = 'PLAYING';
+}
+
+function update() {
+    if (gameState !== 'PLAYING') return;
+
+    gameTime += 0.08;
+
+    if (player.invulnerableTimer > 0) {
+        player.invulnerableTimer--;
+    }
+
+    if (keys.left) {
+        player.vx = -player.speed;
+        player.facing = 'left';
+    } else if (keys.right) {
+        player.vx = player.speed;
+        player.facing = 'right';
+    } else {
+        player.vx = 0;
+    }
+
+    player.vy += player.gravity;
+    player.x += player.vx;
+    if (player.x < 10) player.x = 10;
+
+    activeLevelData.walls.forEach(wall => {
+        if (player.x + player.width > wall.x &&
+            player.x < wall.x + wall.width &&
+            player.y + player.height > wall.y &&
+            player.y < wall.y + wall.height) {
+            
+            if (player.vx > 0) {
+                player.x = wall.x - player.width;
+            } else if (player.vx < 0) {
+                player.x = wall.x + wall.width;
+            }
+        }
+    });
+
+    player.y += player.vy;
+
+    if (player.y >= groundY - player.height) {
+        player.y = groundY - player.height;
+        player.vy = 0;
+        player.isJumping = false;
+    }
+
+    activeLevelData.walls.forEach(wall => {
+        if (player.x + player.width > wall.x &&
+            player.x < wall.x + wall.width &&
+            player.y + player.height > wall.y &&
+            player.y < wall.y + wall.height) {
+            
+            if (player.vy > 0 && player.y + player.height - player.vy <= wall.y + 10) {
+                player.y = wall.y - player.height;
+                player.vy = 0;
+                player.isJumping = false;
+            } else if (player.vy < 0 && player.y - player.vy >= wall.y + wall.height - 10) {
+                player.y = wall.y + wall.height;
+                player.vy = 0;
+            }
+        }
+    });
+
+    activeLevelData.enemies.forEach(enemy => {
+        if (!enemy.alive) return;
+        enemy.x += enemy.vx;
+        if (enemy.x < enemy.minX || enemy.x > enemy.maxX) {
+            enemy.vx *= -1;
+        }
+
+        if (player.x + player.width > enemy.x &&
+            player.x < enemy.x + enemy.width &&
+            player.y + player.height > enemy.y &&
+            player.y < enemy.y + enemy.height) {
+            
+            if (player.vy > 0 && player.y + player.height - player.vy <= enemy.y + 10) {
+                enemy.alive = false;
+                player.vy = -8;
+                score += 20;
+                updateHUD();
+            } else if (player.invulnerableTimer === 0) {
+                energy -= 25;
+                player.invulnerableTimer = 90;
+                player.vy = -6;
+
+                if (energy <= 0) {
+                    lives--;
+                    energy = 100;
+                    if (lives <= 0) {
+                        alert("¡Te has quedado sin vidas! Reiniciando nivel...");
+                        lives = 3;
+                        currentLevel = 1;
+                        score = 0;
+                    }
+                }
+                updateHUD();
+            }
+        }
+    });
+
+    mysteryBlocks.forEach(block => {
+        if (!block.hit &&
+            player.x + player.width > block.x &&
+            player.x < block.x + block.width &&
+            player.y <= block.y + block.height &&
+            player.y + player.height >= block.y + block.height &&
+            player.vy < 0) {
+            
+            block.hit = true;
+            player.vy = 2;
+
+            floatingRewards.push({
+                x: block.x + 5,
+                y: block.y - 10,
+                type: block.reward,
+                timer: 40
+            });
+
+            if (block.reward === 'coin') {
+                score += 15;
+            } else if (block.reward === 'heart') {
+                energy = Math.min(100, energy + 50);
+            }
+            updateHUD();
+        }
+    });
+
+    floatingRewards.forEach(r => {
+        r.y -= 1.5;
+        r.timer--;
+    });
+    floatingRewards = floatingRewards.filter(r => r.timer > 0);
+
+    activeLevelData.items.forEach(item => {
+        if (!item.collected && Math.abs(player.x - item.x) < 25 && player.y + player.height >= groundY - 30) {
+            item.collected = true;
+            score += (item.type === 'coin' ? 10 : 25);
+            updateHUD();
+        }
+    });
+
+    let chest = activeLevelData.chests;
+    if (!chest.opened && player.x + player.width >= chest.x && player.y + player.height >= groundY) {
+        chest.opened = true;
+        triggerChestChallenge();
+    }
+}
+
+function triggerChestChallenge() {
+    gameState = 'MATH_EVENT';
+    const challenge = activeLevelData;
+    
+    document.getElementById('modal-title').innerText = `📦 ${challenge.title}`;
+    document.getElementById('modal-question').innerText = challenge.question;
+    document.getElementById('feedback-text').innerText = '';
+    
+    const optionsGeo = document.getElementById('options-container');
+    optionsGeo.innerHTML = '';
+
+    // Mezclar las opciones al azar para que no estén siempre en la primera posición
+    let shuffledOptions = [...challenge.options].sort(() => Math.random() - 0.5);
+
+    shuffledOptions.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-option';
+        btn.innerText = opt;
+        btn.onclick = () => checkAnswer(opt, challenge);
+        optionsGeo.appendChild(btn);
+    });
+
+    document.getElementById('math-modal').style.display = 'flex';
+}
+
+function checkAnswer(selected, challenge) {
+    const feedback = document.getElementById('feedback-text');
+    if (selected === challenge.correct) {
+        feedback.className = 'feedback-text feedback-correct';
+        feedback.innerText = '¡Correcto! Avanzando al siguiente nivel...';
+        score += 50;
+        updateHUD();
+
+        setTimeout(() => {
+            document.getElementById('math-modal').style.display = 'none';
+            if (currentLevel < 15) {
+                currentLevel++;
+                loadLevel(currentLevel);
+            } else {
+                triggerVictory();
+            }
+        }, 800);
+    } else {
+        energy -= 25;
+        if (energy <= 0) {
+            lives--;
+            energy = 100;
+        }
+        updateHUD();
+        
+        if (lives <= 0) {
+            document.getElementById('math-modal').style.display = 'none';
+            alert("¡Te has quedado sin vidas! Reiniciando desde el Nivel 1...");
+            currentLevel = 1;
+            lives = 3;
+            score = 0;
+            energy = 100;
+            loadLevel(currentLevel);
+        } else {
+            feedback.className = 'feedback-text feedback-wrong';
+            feedback.innerText = 'Incorrecto (-25% Energía). Pista: ' + challenge.hint;
+        }
+    }
+}
+
+function triggerVictory() {
+    gameState = 'VICTORY';
+    document.getElementById('final-stats').innerText = `Puntuación Final: ${score} pts | Vidas Restantes: ${lives}`;
+    document.getElementById('victory-screen').style.display = 'flex';
+}
+
+function restartGame() {
+    document.getElementById('victory-screen').style.display = 'none';
+    startGame();
+}
+
+/* FUNCIONES DE DIBUJO */
+function drawWall(wall) {
+    ctx.fillStyle = '#b71c1c';
+    ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+    ctx.strokeStyle = '#ffebee';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(wall.x, wall.y, wall.width, wall.height);
+    
+    for (let wy = wall.y + 10; wy < wall.y + wall.height; wy += 10) {
+        ctx.beginPath();
+        ctx.moveTo(wall.x, wy);
+        ctx.lineTo(wall.x + wall.width, wy);
+        ctx.stroke();
+    }
+}
+
+function drawEnemy(x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    ctx.fillStyle = '#8d4004';
+    ctx.beginPath();
+    ctx.ellipse(16, 16, 16, 14, 0, Math.PI, 0, false);
+    ctx.fill();
+
+    ctx.fillStyle = '#5c2600';
+    ctx.beginPath();
+    ctx.ellipse(16, 10, 14, 8, 0, Math.PI, 0, false);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffcc80';
+    ctx.fillRect(6, 14, 20, 12);
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(9, 16, 3, 5);
+    ctx.fillRect(20, 16, 3, 5);
+
+    ctx.fillStyle = '#111';
+    ctx.fillRect(4, 28, 10, 6);
+    ctx.fillRect(18, 28, 10, 6);
+
+    ctx.restore();
+}
+
+function drawAdventurer(x, y, isGirl, facing, isMoving) {
+    if (player.invulnerableTimer > 0 && Math.floor(player.invulnerableTimer / 4) % 2 === 0) {
+        return; 
+    }
+
+    ctx.save();
+    ctx.translate(x + 16, y);
+
+    if (facing === 'left') {
+        ctx.scale(-1, 1);
+    }
+
+    let legOffset = isMoving ? Math.sin(gameTime * 2) * 5 : 0;
+
+    ctx.fillStyle = '#4e342e';
+    ctx.beginPath();
+    ctx.roundRect(-22, 18, 10, 22, 3);
+    ctx.fill();
+
+    ctx.fillStyle = '#3e2723';
+    ctx.fillRect(-10 + legOffset, 42, 7, 13);
+    ctx.fillRect(3 - legOffset, 42, 7, 13);
+
+    ctx.fillStyle = isGirl ? '#2e7d32' : '#d84315';
+    ctx.fillRect(-12, 20, 24, 22);
+
+    ctx.fillStyle = '#8d6e63';
+    ctx.fillRect(-12, 20, 6, 22);
+    ctx.fillRect(6, 20, 6, 22);
+
+    ctx.fillStyle = '#d32f2f';
+    ctx.beginPath();
+    ctx.arc(0, 20, 8, 0, Math.PI);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffcc80';
+    ctx.beginPath();
+    ctx.arc(0, 10, 12, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = isGirl ? '#4a148c' : '#4e2700';
+    if (isGirl) {
+        ctx.beginPath();
+        ctx.arc(0, 8, 14, Math.PI, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(-15, 8, 6, 18);
+    } else {
+        ctx.beginPath();
+        ctx.arc(0, 7, 13, Math.PI * 0.8, Math.PI * 2.2);
+        ctx.fill();
+    }
+
+    ctx.fillStyle = '#212121';
+    ctx.beginPath();
+    ctx.arc(4, 9, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#795548';
+    ctx.fillRect(-18, 0, 36, 4);
+    ctx.beginPath();
+    ctx.roundRect(-10, -10, 20, 10, [5, 5, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(-10, -2, 20, 2);
+
+    ctx.restore();
+}
+
+function drawTree(x, y) {
+    ctx.fillStyle = '#4a2e18';
+    ctx.fillRect(x - 10, y - 60, 20, 60);
+    ctx.fillStyle = '#2e7d32';
+    ctx.beginPath();
+    ctx.arc(x, y - 80, 35, 0, Math.PI * 2);
+    ctx.arc(x - 20, y - 65, 25, 0, Math.PI * 2);
+    ctx.arc(x + 20, y - 65, 25, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function drawFlower(x, y, color) {
+    ctx.strokeStyle = '#388e3c';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y - 12);
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x - 4, y - 14, 4, 0, Math.PI * 2);
+    ctx.arc(x + 4, y - 14, 4, 0, Math.PI * 2);
+    ctx.arc(x, y - 18, 4, 0, Math.PI * 2);
+    ctx.arc(x, y - 10, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.arc(x, y - 14, 3, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    let cameraX = Math.max(0, Math.min(player.x - canvas.width / 3, 400));
+    ctx.translate(-cameraX, 0);
+
+    ctx.fillStyle = currentLevel <= 5 ? '#1e3c72' : (currentLevel <= 10 ? '#004d40' : '#311b92');
+    ctx.fillRect(0, 0, 1500, canvas.height);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(200, 250);
+    ctx.lineTo(400, groundY);
+    ctx.lineTo(600, 220);
+    ctx.lineTo(900, groundY);
+    ctx.lineTo(1300, 200);
+    ctx.lineTo(1500, groundY);
+    ctx.fill();
+
+    drawTree(120, groundY);
+    drawTree(450, groundY);
+    drawTree(950, groundY);
+
+    ctx.fillStyle = '#3e2723';
+    ctx.fillRect(0, groundY, 1500, canvas.height - groundY);
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(0, groundY, 1500, 12);
+
+    drawFlower(70, groundY, '#e91e63');
+    drawFlower(280, groundY, '#ffeb3b');
+    drawFlower(780, groundY, '#ffeb3b');
+
+    if (activeLevelData && activeLevelData.walls) {
+        activeLevelData.walls.forEach(w => drawWall(w));
+    }
+
+    if (activeLevelData && activeLevelData.enemies) {
+        activeLevelData.enemies.forEach(enemy => {
+            if (enemy.alive) {
+                drawEnemy(enemy.x, enemy.y);
+            }
+        });
+    }
+
+    mysteryBlocks.forEach(block => {
+        ctx.fillStyle = block.hit ? '#795548' : '#ffb300';
+        ctx.fillRect(block.x, block.y, block.width, block.height);
+        ctx.strokeStyle = '#3e2723';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(block.x, block.y, block.width, block.height);
+
+        if (!block.hit) {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px Arial';
+            ctx.fillText('?', block.x + 11, block.y + 26);
+        }
+    });
+
+    floatingRewards.forEach(r => {
+        ctx.fillStyle = r.type === 'coin' ? '#ffd700' : '#ff5252';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText(r.type === 'coin' ? '+15 pts' : '❤️ Energía+', r.x, r.y);
+    });
+
+    if (activeLevelData && activeLevelData.items) {
+        activeLevelData.items.forEach(item => {
+            if (!item.collected) {
+                let floatY = item.y + Math.sin(gameTime * 2 + item.x) * 3;
+                if (item.type === 'coin') {
+                    ctx.fillStyle = '#ffd700';
+                    ctx.beginPath();
+                    ctx.arc(item.x, floatY, 9, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#b8860b';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else if (item.type === 'diamond') {
+                    ctx.fillStyle = '#00ffff';
+                    ctx.beginPath();
+                    ctx.moveTo(item.x, floatY - 12);
+                    ctx.lineTo(item.x + 9, floatY);
+                    ctx.lineTo(item.x, floatY + 12);
+                    ctx.lineTo(item.x - 9, floatY);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#008b8b';
+                    ctx.stroke();
+                }
+            }
+        });
+    }
+
+    if (activeLevelData && activeLevelData.chests) {
+        let chest = activeLevelData.chests;
+        ctx.fillStyle = chest.opened ? '#8d6e63' : '#a1887f';
+        ctx.fillRect(chest.x, chest.y, chest.width, chest.height);
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(chest.x, chest.y, chest.width, 5);
+        ctx.fillRect(chest.x, chest.y + chest.height - 5, chest.width, 5);
+        ctx.fillRect(chest.x + 5, chest.y + 18, chest.width - 10, 6);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(chest.x + chest.width/2 - 4, chest.y + 20, 8, 10);
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(chest.x + chest.width/2, chest.y + 23, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    drawAdventurer(player.x, player.y, selectedGender === 'girl', player.facing, player.vx !== 0);
+
+    ctx.restore();
+}
+
+function gameLoop() {
+    update();
+    draw();
+    animationFrameId = requestAnimationFrame(gameLoop);
+}
+</script>
+</body>
+</html>
